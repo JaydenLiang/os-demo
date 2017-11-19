@@ -1,0 +1,121 @@
+<html>
+    <head>
+        <title>Clock Policy</title>
+        <style>canvas { width: 100%; height: 100% }</style>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+        <script>
+            var pastreams = [];
+            var hittable = [];
+            var step = 0;
+            var pcur = 0;
+            function updateConfig(){
+                pastreams = $('#page-address-stream').val().replace(new RegExp(' ', 'g'), '').split(',');
+                step = 0;
+                hittable = [];
+                $('#result-table').empty();
+                $('#result-table').append('<tr id="page-num" class="step"></tr>');
+                $('#result-table').append('<tr id="fault-flag"></tr>');
+                table_ref = $('#result-table').children();
+                for(var i = 0; i < pastreams.length; i ++){
+                    table_ref.find('#page-num').append('<th>'+pastreams[i]+'</th>');
+                    for(var j = 0; j < $('#resident-set-size').val(); j ++){
+                        if(table_ref.find('#set-'+j).length == 0){
+                            table_ref.find('.step:last').after('<tr id="set-'+j+'" class="step"></tr>');
+                        }
+                        table_ref.find('#set-'+j).append('<td><input type="text" id="set-'+j+'-'+i+'" value="" style="width: 16px;"/></td>');
+                    }
+                    table_ref.find('#fault-flag').append('<td><input type="text" id="flag-'+i+'" class="flag" value="F" style="width: 16px;"/></td>');
+                }
+                $(".flag").hide();
+            }
+
+            function getEmptySlot(step){
+                var setsize = $('#resident-set-size').val();
+                for(var i = 0; i < setsize; i ++){
+                    if($('input[id="set-'+i+'-'+step+'"]').val() == ""){
+                        return $('input[id="set-'+i+'-'+step+'"]');
+                    }
+                }
+                return null;
+            }
+
+            function copy(from, to){
+                if(from < 0 || from >= pastreams.length || to < 0 || to >= pastreams.length){
+                    return;
+                }
+                var setsize = $('#resident-set-size').val();
+                for(var i = 0; i < setsize; i ++){
+                    $('input[id="set-'+i+'-'+to+'"]').val($('input[id="set-'+i+'-'+from+'"]').val());
+                }
+            }
+
+            function stepover(){
+                copy(step - 1, step);
+                nextslot = getEmptySlot(step);
+                if(nextslot === null){
+                    swapLRU(step);
+                }
+                else{
+                    nextslot.val(pastreams[step]);
+                }
+                step ++;
+            }
+
+            function run(){
+                updateConfig();
+                for(var i = 0; i < pastreams.length; i ++){
+                    stepover();
+                }
+            }
+
+            function findNext(step){
+                var setsize = $('#resident-set-size').val();
+                for(var i = 0; i < setsize; i ++){
+                    address = $('input[id="set-'+i+'-'+step+'"]').val();
+                    if(address == pastreams[step]){
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function swapLRU(step){
+                var address = 0;
+                var min = step + 1;
+                var set = 0;
+                var setsize = $('#resident-set-size').val();
+                for(var i = 0; i < setsize; i ++){
+                    address = $('input[id="set-'+i+'-'+step+'"]').val();
+                    if(hittable[address] < min){
+                        min = hittable[address];
+                        set = i;
+                    }
+                }
+                $('input[id="set-'+set+'-'+step+'"]').val(pastreams[step]);
+                $('#flag-'+step).show();
+            }
+            $(document).ready(function(){
+                updateConfig();
+            });
+        </script>
+    </head>
+    <body>
+        <div id="configuration">
+            <label for="page-address-stream">Page Address Stream:</label><input id="page-address-stream" type="text" value="1,2,3,4,5,4,3,2,5,1,2,3,5,3,1,3,2,4" oninput="updateConfig();"/><br/>
+            <label for="resident-set-size">Resident Set Size:</label><input id="resident-set-size" type="text" value="4" style="width: 30px;" oninput="updateConfig();"/><br/>
+        </div>
+        <div id="operation">
+            <input type="button" value="step over" onclick="stepover();" /><input type="button" value="run" onclick="run();" /><br/>
+        </div>
+        <div>
+            <table id="result-table">
+                <tr id="page-num">
+                </tr>
+                <tr id="set-0">
+                </tr>
+                <tr id="fault-flag">
+                </tr>
+            </table>
+        </div>
+    </body>
+</html>
